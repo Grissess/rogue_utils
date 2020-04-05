@@ -107,6 +107,13 @@ macro_rules! generic_rect {
                 $rect::origin_opp(self.origin.min(other.origin), self.opp().max(other.opp()))
             }
 
+            pub fn grow_aniso(&self, amt: $vec) -> $rect {
+                $rect::origin_opp(self.origin - amt, self.opp() + amt * $vec(2 as $scalar, 2 as $scalar))
+            }
+            pub fn grow(&self, amt: $scalar) -> $rect {
+                self.grow_aniso($vec(amt, amt))
+            }
+
             pub fn origin(&self) -> $vec { self.origin }
             pub fn dim(&self) -> $vec { self.dim }
             pub fn opp(&self) -> $vec { self.origin + self.dim }

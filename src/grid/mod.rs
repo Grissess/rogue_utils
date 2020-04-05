@@ -39,6 +39,20 @@ impl<T> Grid<T> {
         })
     }
 
+    pub fn from_generator<G>(mut gen: G, origin: V2i, dim: V2i) -> Result<Grid<T>, Error>
+        where
+            G: FnMut(V2i) -> T
+    {
+        if !dim.is_q1() {
+            return Err(Error::NegativeDim(dim));
+        }
+
+        Grid::from_boxed_slice(
+            R2i::origin_dim(origin, dim).iter().map(move |pt| gen(pt)).collect(),
+            origin, dim,
+        )
+    }
+
     pub fn index_of(&self, v: V2i) -> Result<usize, Error> {
         let d = v - self.origin;
         if d.0 < 0 || d.1 < 0 || d.0 >= self.dim.0 || d.1 >= self.dim.1 {

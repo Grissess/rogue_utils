@@ -6,28 +6,24 @@ use std::fmt::{self, Debug};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
+/* Arguments: Invoking point, Region coordinate, Grid origin, Grid dim */
+type GridGen<T> = Box<dyn FnMut(V2i, V2i, V2i, V2i) -> Grid<T>>;
+
 pub struct Region<T> {
     grid_size: V2i,
     grids: HashMap<V2i, Grid<T>>,
+    grid_gen: Option<GridGen<T>>,
 }
 
 pub struct RegionConfig<T> {
     grid_size: V2i,
+    grid_gen: Option<GridGen<T>>,
     _t: PhantomData<T>,
 }
 
 #[derive(Debug)]
 pub enum Error {
     NonPositiveDim(V2i),
-}
-
-impl<T: Clone> Clone for Region<T> {
-    fn clone(&self) -> Region<T> {
-        Region {
-            grid_size: self.grid_size,
-            grids: self.grids.clone(),
-        }
-    }
 }
 
 impl<T: Debug> Debug for Region<T> {
@@ -43,6 +39,7 @@ impl<T> Default for RegionConfig<T> {
     fn default() -> RegionConfig<T> {
         RegionConfig {
             grid_size: V2i(32, 32),
+            grid_gen: None,
             _t: PhantomData,
         }
     }
@@ -53,6 +50,10 @@ impl<T> RegionConfig<T> {
         RegionConfig { grid_size, ..self }
     }
 
+    pub fn with_grid_gen(self, grid_gen: Option<GridGen<T>>) -> RegionConfig<T> {
+        RegionConfig { grid_gen, ..self }
+    }
+
     pub fn build(self) -> Result<Region<T>, Error> {
         if !self.grid_size.is_strict_q1() {
             return Err(Error::NonPositiveDim(self.grid_size));
@@ -60,6 +61,7 @@ impl<T> RegionConfig<T> {
         Ok(Region {
             grid_size: self.grid_size,
             grids: HashMap::new(),
+            grid_gen: self.grid_gen,
         })
     }
 }
@@ -84,11 +86,15 @@ impl<T: Default> Region<T> {
     pub fn get_grid_mut(&mut self, v: V2i) -> &mut Grid<T> {
         let gi = self.get_grid_index(v);
         let gs = self.grid_size;
-        self.grids.entry(gi).or_insert_with(
-            || Grid::from_default(
-                gi * gs,
-                gs
-            ).unwrap()
+        let gg = self.grid_gen.as_mut();
+        self.grids.entry(gi).or_insert_with(||
+            match gg {
+                Some(gen) => gen(v, gi, gi * gs, gs),
+                None => Grid::from_default(
+                    gi * gs,
+                    gs
+                ).unwrap(),
+            }
         )
     }
 
@@ -102,6 +108,10 @@ impl<T: Default> Region<T> {
 
     pub fn get_mut(&mut self, v: V2i) -> &mut T {
         self.get_grid_mut(v).get_mut(v).unwrap()
+    }
+
+    pub fn get_or_create(&mut self, v: V2i) -> &T {
+        self.get_mut(v)  // NB: Downgrades
     }
 }
 
@@ -137,5 +147,51 @@ mod test {
                 assert_eq!(r.get(V2i(x, y) * r.grid_size()).unwrap(), &(2 * SIZE * x + y));
             }
         }
+    }
+
+    #[test]
+    fn generator_grid() {
+        let mut r = RegionConfig::<isize>::default().with_grid_gen(Some(Box::new(|_, _, o, d|
+            Grid::from_generator(|g: V2i| g.l1(), o, d).expect("Failed to generate Grid")
+        ))).build().expect("Failed to build Region");
+        
+        for pt in &R2i::origin_dim(V2i(0, 0), r.grid_size()) {
+            assert_eq!(*r.get_or_create(pt), pt.l1());
+        }
+
+        println!("{:?}", r);
+    }
+
+    #[test]
+    fn generator_region() {
+        let mut r = RegionConfig::<isize>::default().with_grid_gen(Some(Box::new(|_, r, o, d|
+            Grid::from_generator(|_| r.l1(), o, d).expect("Failed to generate Grid")
+        ))).build().expect("Failed to build Region");
+        
+        for pt in &R2i::origin_dim(V2i(0, 0), r.grid_size()) {
+            assert_eq!(*r.get_or_create(pt), 0);
+        }
+        for pt in &R2i::origin_dim(r.grid_size(), r.grid_size()) {
+            assert_eq!(*r.get_or_create(pt), 2);
+        }
+
+        println!("{:?}", r);
+    }
+
+    #[test]
+    fn generator_invoker() {
+        let mut r = RegionConfig::<isize>::default().with_grid_gen(Some(Box::new(|i, _, o, d|
+            Grid::from_generator(|_| i.l1(), o, d).expect("Failed to generate Grid")
+        ))).build().expect("Failed to build Region");
+
+        let ipt = V2i(5, 5);
+
+        r.get_or_create(ipt);
+        
+        for pt in &R2i::origin_dim(V2i(0, 0), r.grid_size()) {
+            assert_eq!(*r.get_or_create(pt), ipt.l1());
+        }
+
+        println!("{:?}", r);
     }
 }
