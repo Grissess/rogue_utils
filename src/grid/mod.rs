@@ -110,7 +110,7 @@ impl<T: Debug> Debug for Grid<T> {
 }
 
 impl<T: Default> Grid<T> {
-    fn from_default(origin: V2i, dim: V2i) -> Result<Grid<T>, Error> {
+    pub fn from_default(origin: V2i, dim: V2i) -> Result<Grid<T>, Error> {
         if !dim.is_q1() {
             return Err(Error::NegativeDim(dim));
         }
