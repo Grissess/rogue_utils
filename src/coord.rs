@@ -92,6 +92,11 @@ macro_rules! generic_rect {
             pub fn minor_rad(&self) -> $scalar { self.dim.cmin() }
             pub fn major_rad(&self) -> $scalar { self.dim.cmax() }
 
+            pub fn contains(&self, pt: $vec) -> bool {
+                let opp = self.opp();
+                pt.0 >= self.origin.0 && pt.0 < opp.0 && pt.1 >= self.origin.1 && pt.1 < opp.1
+            }
+
             pub fn intersect(&self, other: $rect) -> Option<$rect> {
                 let orig = self.origin.max(other.origin);
                 let opp = self.opp().min(other.opp());
