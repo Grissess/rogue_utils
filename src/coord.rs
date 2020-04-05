@@ -3,13 +3,13 @@ use std::ops::*;
 pub type Vi = isize;
 pub type Vf = f64;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct V2i(pub Vi, pub Vi);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct V2f(pub Vf, pub Vf);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct R2i {
     origin: V2i,
     dim: V2i,
