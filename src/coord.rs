@@ -31,6 +31,10 @@ impl V2i {
     pub fn rem_euclid(self, other: V2i) -> V2i { V2i(self.0.rem_euclid(other.0), self.1.rem_euclid(other.1)) }
     pub fn is_q1(self) -> bool { self.0 >= 0 && self.1 >= 0 }
     pub fn is_strict_q1(self) -> bool { self.0 > 0 && self.1 > 0 }
+    pub fn cmin(self) -> Vi { self.0.min(self.1) }
+    pub fn cmax(self) -> Vi { self.0.max(self.1) }
+    pub fn min(self, other: V2i) -> V2i { V2i(self.0.min(other.0), self.1.min(other.1)) }
+    pub fn max(self, other: V2i) -> V2i { V2i(self.0.max(other.0), self.1.max(other.1)) }
 }
 
 impl V2f {
@@ -45,6 +49,10 @@ impl V2f {
     pub fn rem_euclid(self, other: V2f) -> V2f { V2f(self.0.rem_euclid(other.0), self.1.rem_euclid(other.1)) }
     pub fn is_q1(self) -> bool { self.0 >= 0.0 && self.1 >= 0.0 }
     pub fn is_strict_q1(self) -> bool { self.0 > 0.0 && self.1 > 0.0 }
+    pub fn cmin(self) -> Vf { self.0.min(self.1) }
+    pub fn cmax(self) -> Vf { self.0.max(self.1) }
+    pub fn min(self, other: V2f) -> V2f { V2f(self.0.min(other.0), self.1.min(other.1)) }
+    pub fn max(self, other: V2f) -> V2f { V2f(self.0.max(other.0), self.1.max(other.1)) }
 }
 
 impl From<V2i> for V2f {
@@ -72,6 +80,31 @@ macro_rules! generic_rect {
 
             pub fn origin_opp(origin: $vec, opposite: $vec) -> $rect {
                 $rect::origin_dim(origin, opposite - origin)
+            }
+
+            pub fn translate(&self, offset: $vec) -> $rect {
+                $rect::origin_dim(self.origin + offset, self.dim)
+            }
+            pub fn scale(&self, amount: $vec) -> $rect {
+                $rect::origin_dim(self.origin, self.dim * amount)
+            }
+
+            pub fn minor_rad(&self) -> $scalar { self.dim.cmin() }
+            pub fn major_rad(&self) -> $scalar { self.dim.cmax() }
+
+            pub fn intersect(&self, other: $rect) -> Option<$rect> {
+                let orig = self.origin.max(other.origin);
+                let opp = self.opp().min(other.opp());
+                let dim = opp - orig;
+                if dim.is_strict_q1() {
+                    Some($rect::origin_dim(orig, dim))
+                } else {
+                    None
+                }
+            }
+
+            pub fn union(&self, other: $rect) -> $rect {
+                $rect::origin_opp(self.origin.min(other.origin), self.opp().max(other.opp()))
             }
 
             pub fn origin(&self) -> $vec { self.origin }
@@ -158,5 +191,41 @@ mod test {
         let v: Vec<_> = r.iter().collect();
         println!("{:?}", v);
         assert_eq!(v.len(), 25);
+    }
+
+    #[test]
+    fn rect_isct() {
+        let ra = R2i::origin_dim(V2i(0, 0), V2i(5, 5));
+        let rb = R2i::origin_dim(V2i(3, 3), V2i(5, 5));
+
+        let isct = ra.intersect(rb).expect("No intersection");
+        println!("{:?}", isct);
+        assert_eq!(isct.dim(), V2i(2, 2));
+    }
+
+    #[test]
+    fn rect_isct_disjoint_edge() {
+        let ra = R2i::origin_dim(V2i(0, 0), V2i(5, 5));
+        let rb = R2i::origin_dim(V2i(5, 5), V2i(5, 5));
+
+        assert!(ra.intersect(rb).is_none());
+    }
+
+    #[test]
+    fn rect_isct_disjoint() {
+        let ra = R2i::origin_dim(V2i(0, 0), V2i(5, 5));
+        let rb = R2i::origin_dim(V2i(8, 8), V2i(5, 5));
+
+        assert!(ra.intersect(rb).is_none());
+    }
+
+    #[test]
+    fn rect_union() {
+        let ra = R2i::origin_dim(V2i(0, 0), V2i(5, 5));
+        let rb = R2i::origin_dim(V2i(3, 3), V2i(5, 5));
+
+        let un = ra.union(rb);
+        println!("{:?}", un);
+        assert_eq!(un.dim(), V2i(8, 8));
     }
 }
