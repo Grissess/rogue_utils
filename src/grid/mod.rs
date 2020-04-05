@@ -1,4 +1,5 @@
 pub mod path;
+pub mod region;
 
 use crate::*;
 
@@ -25,7 +26,7 @@ impl<T> Grid<T> {
     }
 
     fn from_boxed_slice(array: Box<[T]>, origin: V2i, dim: V2i) -> Result<Grid<T>, Error> {
-        if dim.0 < 0 || dim.1 < 0 {
+        if !dim.is_q1() {
             return Err(Error::NegativeDim(dim));
         }
 
@@ -92,7 +93,7 @@ impl<T: Debug> Debug for Grid<T> {
 
 impl<T: Default> Grid<T> {
     fn from_default(origin: V2i, dim: V2i) -> Result<Grid<T>, Error> {
-        if dim.0 < 0 || dim.1 < 0 {
+        if !dim.is_q1() {
             return Err(Error::NegativeDim(dim));
         }
 

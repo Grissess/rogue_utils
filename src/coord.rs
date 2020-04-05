@@ -14,6 +14,10 @@ impl V2i {
     pub fn linf(self) -> Vi { self.0.abs().min(self.1.abs()) }
     pub fn swap(self) -> V2i { V2i(self.1, self.0) }
     pub fn abs(self) -> V2i { V2i(self.0.abs(), self.1.abs()) }
+    pub fn div_euclid(self, other: V2i) -> V2i { V2i(self.0.div_euclid(other.0), self.1.div_euclid(other.1)) }
+    pub fn rem_euclid(self, other: V2i) -> V2i { V2i(self.0.rem_euclid(other.0), self.1.rem_euclid(other.1)) }
+    pub fn is_q1(self) -> bool { self.0 >= 0 && self.1 >= 0 }
+    pub fn is_strict_q1(self) -> bool { self.0 > 0 && self.1 > 0 }
 }
 
 impl V2f {
@@ -23,6 +27,10 @@ impl V2f {
     pub fn swap(self) -> V2f { V2f(self.1, self.0) }
     pub fn abs(self) -> V2f { V2f(self.0.abs(), self.1.abs()) }
     pub fn ang(self) -> Vf { self.1.atan2(self.0) }
+    pub fn div_euclid(self, other: V2f) -> V2f { V2f(self.0.div_euclid(other.0), self.1.div_euclid(other.1)) }
+    pub fn rem_euclid(self, other: V2f) -> V2f { V2f(self.0.rem_euclid(other.0), self.1.rem_euclid(other.1)) }
+    pub fn is_q1(self) -> bool { self.0 >= 0.0 && self.1 >= 0.0 }
+    pub fn is_strict_q1(self) -> bool { self.0 > 0.0 && self.1 > 0.0 }
 }
 
 impl From<V2i> for V2f {
