@@ -9,8 +9,21 @@ pub struct V2i(pub Vi, pub Vi);
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct V2f(pub Vf, pub Vf);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct R2i {
+    origin: V2i,
+    dim: V2i,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct R2f {
+    origin: V2f,
+    dim: V2f,
+}
+
 impl V2i {
     pub fn l1(self) -> Vi { self.0.abs() + self.1.abs() }
+    pub fn l2_sq(self) -> Vi { self.0 * self.0 + self.1 * self.1 }
     pub fn linf(self) -> Vi { self.0.abs().min(self.1.abs()) }
     pub fn swap(self) -> V2i { V2i(self.1, self.0) }
     pub fn abs(self) -> V2i { V2i(self.0.abs(), self.1.abs()) }
@@ -22,7 +35,8 @@ impl V2i {
 
 impl V2f {
     pub fn l1(self) -> Vf { self.0.abs() + self.1.abs() }
-    pub fn l2(self) -> Vf { (self.0 * self.0 + self.1 * self.1).sqrt() }
+    pub fn l2_sq(self) -> Vf { self.0 * self.0 + self.1 * self.1 }
+    pub fn l2(self) -> Vf { self.l2_sq().sqrt() }
     pub fn linf(self) -> Vf { self.0.abs().min(self.1.abs()) }
     pub fn swap(self) -> V2f { V2f(self.1, self.0) }
     pub fn abs(self) -> V2f { V2f(self.0.abs(), self.1.abs()) }
@@ -39,6 +53,80 @@ impl From<V2i> for V2f {
 
 impl From<V2f> for V2i {
     fn from(v: V2f) -> V2i { V2i(v.0 as Vi, v.1 as Vi) }
+}
+
+macro_rules! generic_rect {
+    ($rect:tt, $vec:tt, $scalar:tt) => {
+        impl $rect {
+            pub fn origin_dim(mut origin: $vec, mut dim: $vec) -> $rect {
+                if dim.0 < 0 as $scalar {
+                    dim.0 = -dim.0;
+                    origin.0 -= dim.0;
+                }
+                if dim.1 < 0 as $scalar {
+                    dim.1 = -dim.1;
+                    origin.1 -= dim.1;
+                }
+                $rect { origin, dim }
+            }
+
+            pub fn origin_opp(origin: $vec, opposite: $vec) -> $rect {
+                $rect::origin_dim(origin, opposite - origin)
+            }
+
+            pub fn origin(&self) -> $vec { self.origin }
+            pub fn dim(&self) -> $vec { self.dim }
+            pub fn opp(&self) -> $vec { self.origin + self.dim }
+        }
+    }
+}
+
+generic_rect!(R2i, V2i, Vi);
+generic_rect!(R2f, V2f, Vf);
+
+#[derive(Debug, Clone, Copy)]
+pub struct R2iIter {
+    rect: R2i,
+    current: V2i,
+}
+
+impl Iterator for R2iIter {
+    type Item = V2i;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let cur = self.current;
+        let opp = self.rect.opp();
+
+        if cur.1 >= opp.1 {
+            return None;
+        }
+
+        self.current.0 += 1;
+        if self.current.0 >= opp.0 {
+            self.current.0 = self.rect.origin().0;
+            self.current.1 += 1;
+        }
+
+        Some(cur)
+    }
+}
+
+impl R2i {
+    pub fn iter(&self) -> R2iIter {
+        R2iIter {
+            rect: *self,
+            current: self.origin,
+        }
+    }
+}
+
+impl IntoIterator for &R2i {
+    type Item = V2i;
+    type IntoIter = R2iIter;
+
+    fn into_iter(self) -> R2iIter {
+        self.iter()
+    }
 }
 
 macro_rules! impl_binop {
@@ -59,3 +147,16 @@ impl_binop!(Add, add, +);
 impl_binop!(Sub, sub, -);
 impl_binop!(Mul, mul, *);
 impl_binop!(Div, div, /);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn rect_iter() {
+        let r = R2i::origin_dim(V2i(0, 0), V2i(5, 5));
+        let v: Vec<_> = r.iter().collect();
+        println!("{:?}", v);
+        assert_eq!(v.len(), 25);
+    }
+}
