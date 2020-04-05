@@ -18,6 +18,7 @@ impl V2i {
 
 impl V2f {
     pub fn l1(self) -> Vf { self.0.abs() + self.1.abs() }
+    pub fn l2(self) -> Vf { (self.0 * self.0 + self.1 * self.1).sqrt() }
     pub fn linf(self) -> Vf { self.0.abs().min(self.1.abs()) }
     pub fn swap(self) -> V2f { V2f(self.1, self.0) }
     pub fn abs(self) -> V2f { V2f(self.0.abs(), self.1.abs()) }
