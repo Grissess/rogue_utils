@@ -24,7 +24,7 @@ pub struct R2f {
 impl V2i {
     pub fn l1(self) -> Vi { self.0.abs() + self.1.abs() }
     pub fn l2_sq(self) -> Vi { self.0 * self.0 + self.1 * self.1 }
-    pub fn linf(self) -> Vi { self.0.abs().min(self.1.abs()) }
+    pub fn linf(self) -> Vi { self.0.abs().max(self.1.abs()) }
     pub fn swap(self) -> V2i { V2i(self.1, self.0) }
     pub fn abs(self) -> V2i { V2i(self.0.abs(), self.1.abs()) }
     pub fn div_euclid(self, other: V2i) -> V2i { V2i(self.0.div_euclid(other.0), self.1.div_euclid(other.1)) }
@@ -41,7 +41,7 @@ impl V2f {
     pub fn l1(self) -> Vf { self.0.abs() + self.1.abs() }
     pub fn l2_sq(self) -> Vf { self.0 * self.0 + self.1 * self.1 }
     pub fn l2(self) -> Vf { self.l2_sq().sqrt() }
-    pub fn linf(self) -> Vf { self.0.abs().min(self.1.abs()) }
+    pub fn linf(self) -> Vf { self.0.abs().max(self.1.abs()) }
     pub fn swap(self) -> V2f { V2f(self.1, self.0) }
     pub fn abs(self) -> V2f { V2f(self.0.abs(), self.1.abs()) }
     pub fn ang(self) -> Vf { self.1.atan2(self.0) }
