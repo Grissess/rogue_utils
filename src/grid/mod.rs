@@ -21,11 +21,11 @@ pub enum Error {
 }
 
 impl<T> Grid<T> {
-    fn from_vec(v: Vec<T>, origin: V2i, dim: V2i) -> Result<Grid<T>, Error> {
+    pub fn from_vec(v: Vec<T>, origin: V2i, dim: V2i) -> Result<Grid<T>, Error> {
         Grid::from_boxed_slice(v.into_boxed_slice(), origin, dim)
     }
 
-    fn from_boxed_slice(array: Box<[T]>, origin: V2i, dim: V2i) -> Result<Grid<T>, Error> {
+    pub fn from_boxed_slice(array: Box<[T]>, origin: V2i, dim: V2i) -> Result<Grid<T>, Error> {
         if !dim.is_q1() {
             return Err(Error::NegativeDim(dim));
         }
@@ -39,7 +39,7 @@ impl<T> Grid<T> {
         })
     }
 
-    fn index_of(&self, v: V2i) -> Result<usize, Error> {
+    pub fn index_of(&self, v: V2i) -> Result<usize, Error> {
         let d = v - self.origin;
         if d.0 < 0 || d.1 < 0 || d.0 >= self.dim.0 || d.1 >= self.dim.1 {
             return Err(Error::OutOfBounds(v));
@@ -47,29 +47,33 @@ impl<T> Grid<T> {
         Ok(d.1 as usize * self.dim.0 as usize + d.0 as usize)
     }
 
-    fn v2i_of(&self, index: usize) -> Result<V2i, Error> {
+    pub fn v2i_of(&self, index: usize) -> Result<V2i, Error> {
         if index >= self.array.len() {
             return Err(Error::BadIndex(index));
         }
         Ok(V2i(index.rem_euclid(self.dim.0 as usize) as isize, index.div_euclid(self.dim.0 as usize) as isize) + self.origin)
     }
 
-    fn contains(&self, v: V2i) -> bool { self.index_of(v).is_ok() }
+    pub fn contains(&self, v: V2i) -> bool { self.index_of(v).is_ok() }
 
-    fn get(&self, v: V2i) -> Result<&T, Error> {
+    pub fn get(&self, v: V2i) -> Result<&T, Error> {
         self.index_of(v).map(move |i| &self.array[i])
     }
 
-    fn get_mut(&mut self, v: V2i) -> Result<&mut T, Error> {
+    pub fn get_mut(&mut self, v: V2i) -> Result<&mut T, Error> {
         self.index_of(v).map(move |i| &mut self.array[i])
     }
 
-    fn array(&self) -> &[T] {
+    pub fn array(&self) -> &[T] {
         self.array.as_ref()
     }
 
-    fn array_mut(&mut self) -> &mut [T] {
+    pub fn array_mut(&mut self) -> &mut [T] {
         self.array.as_mut()
+    }
+
+    pub fn rect(&self) -> R2i {
+        R2i::origin_dim(self.origin, self.dim)
     }
 }
 
