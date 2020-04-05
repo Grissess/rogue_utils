@@ -106,6 +106,14 @@ impl<T: Default> Region<T> {
         self.get_grid(v).map(|g| g.get(v).unwrap())
     }
 
+    pub fn is_populated_region(&self, v: V2i) -> bool {
+        self.grids.contains_key(&v)
+    }
+
+    pub fn is_populated_tile(&self, v: V2i) -> bool {
+        self.get(v).is_some()
+    }
+
     pub fn get_mut(&mut self, v: V2i) -> &mut T {
         self.get_grid_mut(v).get_mut(v).unwrap()
     }
