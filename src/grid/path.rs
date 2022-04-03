@@ -117,11 +117,17 @@ pub fn path<N, A>(start: V2i, goal: V2i, mut allow: A) -> Result<Vec<V2i>, Error
 }
 
 impl<T: Traversable> Grid<T> {
-    pub fn path<N>(&self, start: V2i, goal: V2i) -> Result<Vec<V2i>, Error>
+    pub fn path<N>(&self, start: V2i, goal: V2i, radius: Option<usize>) -> Result<Vec<V2i>, Error>
         where
             V2i: Neighbors<N>
     {
+        let limsq = radius.map(|x| x*x);
         path::<N, _>(start, goal, |pos| {
+            if let Some(l2sq) = limsq {
+                if (pos - start).l2_sq() >= l2sq as isize {
+                    return false;
+                }
+            }
             if let Ok(tile) = self.get(pos) {
                 tile.can_pass()
             } else {
@@ -132,11 +138,17 @@ impl<T: Traversable> Grid<T> {
 }
 
 impl<T: Traversable + Default> Region<T> {
-    pub fn path<N>(&self, start: V2i, goal: V2i) -> Result<Vec<V2i>, Error>
+    pub fn path<N>(&self, start: V2i, goal: V2i, radius: Option<usize>) -> Result<Vec<V2i>, Error>
         where
             V2i: Neighbors<N>
     {
+        let limsq = radius.map(|x| x*x);
         path::<N, _>(start, goal, |pos| {
+            if let Some(l2sq) = limsq {
+                if (pos - start).l2_sq() >= l2sq as isize {
+                    return false;
+                }
+            }
             if let Some(tile) = self.get(pos) {
                 tile.can_pass()
             } else {
@@ -145,11 +157,17 @@ impl<T: Traversable + Default> Region<T> {
         })
     }
 
-    pub fn path_mut<N>(&mut self, start: V2i, goal: V2i) -> Result<Vec<V2i>, Error>
+    pub fn path_mut<N>(&mut self, start: V2i, goal: V2i, radius: Option<usize>) -> Result<Vec<V2i>, Error>
         where
             V2i: Neighbors<N>
     {
+        let limsq = radius.map(|x| x*x);
         path::<N, _>(start, goal, |pos| {
+            if let Some(l2sq) = limsq {
+                if (pos - start).l2_sq() >= l2sq as isize {
+                    return false;
+                }
+            }
             self.get_or_create(pos).can_pass()
         })
     }
@@ -177,7 +195,7 @@ mod test {
 
     #[test]
     fn finds_linf_path() {
-        let res = testing_grid().path::<Linf>(V2i(1, 3), V2i(3, 3));
+        let res = testing_grid().path::<Linf>(V2i(1, 3), V2i(3, 3), None);
         println!("path: {:?}", res);
         assert!(res.is_ok());
         let path = res.unwrap();
@@ -188,7 +206,7 @@ mod test {
     
     #[test]
     fn finds_l1_path() {
-        let res = testing_grid().path::<L1>(V2i(1, 3), V2i(3, 3));
+        let res = testing_grid().path::<L1>(V2i(1, 3), V2i(3, 3), None);
         println!("path: {:?}", res);
         assert!(res.is_ok());
         let path = res.unwrap();
@@ -201,7 +219,14 @@ mod test {
     fn fails_when_disconnected() {
         let mut grid = testing_grid();
         *grid.get_mut(V2i(2, 1)).expect("Failed to get cell") = 1;
-        let res = grid.path::<Linf>(V2i(1, 3), V2i(3, 3));
+        let res = grid.path::<Linf>(V2i(1, 3), V2i(3, 3), None);
+        println!("path: {:?}", res);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn fails_when_limited() {
+        let res = testing_grid().path::<Linf>(V2i(1, 3), V2i(3, 3), Some(2));
         println!("path: {:?}", res);
         assert!(res.is_err());
     }
@@ -218,7 +243,7 @@ mod test {
     #[test]
     fn works_on_regions() {
         let mut reg: Region<isize> = RegionConfig::default().build().unwrap();
-        let path = reg.path_mut::<Linf>(V2i(1, 3), V2i(3, 3));
+        let path = reg.path_mut::<Linf>(V2i(1, 3), V2i(3, 3), None);
         println!("path: {:?}", path);
         assert!(path.is_ok());
     }
