@@ -1,5 +1,5 @@
 use crate::*;
-use super::Grid;
+use super::{Grid, region::{Region, RegionConfig}};
 
 use std::cmp::{Reverse, Ordering};
 use std::collections::{BinaryHeap, HashMap};
@@ -63,63 +63,95 @@ impl Ord for State {
     fn cmp(&self, other: &State) -> Ordering { self.cost.cmp(&other.cost) }
 }
 
-impl<T: Traversable> Grid<T> {
-    fn path<N, A>(&self, start: V2i, goal: V2i, mut allow: A) -> Result<Vec<V2i>, Error>
-        where
-            V2i: Neighbors<N>,
-            A: FnMut(V2i) -> bool
-    {
-        let mut back = HashMap::new();
-        let mut cost = HashMap::new();
-        let mut open = BinaryHeap::new();
-        let mut neighbors = Vec::new();
-        
-        open.push(Reverse(State { node: start, cost: 0 }));
-        cost.insert(start, 0usize);
+pub fn path<N, A>(start: V2i, goal: V2i, mut allow: A) -> Result<Vec<V2i>, Error>
+    where
+        V2i: Neighbors<N>,
+        A: FnMut(V2i) -> bool
+{
+    let mut back = HashMap::new();
+    let mut cost = HashMap::new();
+    let mut open = BinaryHeap::new();
+    let mut neighbors = Vec::new();
+    
+    open.push(Reverse(State { node: start, cost: 0 }));
+    cost.insert(start, 0usize);
 
-        while let Some(visit) = open.pop() {
-            #[cfg(test)] println!("visit: {:?}", visit);
+    while let Some(visit) = open.pop() {
+        #[cfg(test)] println!("visit: {:?}", visit);
 
-            let current = visit.0;
-            if current.node == goal {
-                let mut current = goal;  // NB: shadowed
-                let mut path = Vec::new();
-                loop {
-                    #[cfg(test)] println!("current: {:?}", current);
+        let current = visit.0;
+        if current.node == goal {
+            let mut current = goal;  // NB: shadowed
+            let mut path = Vec::new();
+            loop {
+                #[cfg(test)] println!("current: {:?}", current);
 
-                    path.push(current);
-                    if let Some(next) = back.get(&current) {
-                        current = *next;
-                    } else {
-                        path.reverse();
-                        return Ok(path);
-                    }
-                }
-            }
-
-            current.node.neighbors(&mut neighbors);  // NB: Implicitly using the implementation for N
-
-            for neigh in neighbors.drain(..) {
-                if !allow(neigh) {
-                    continue;
-                }
-
-                if let Ok(tile) = self.get(neigh) {
-                    if !tile.can_pass() {
-                        continue;
-                    }
-
-                    let est = cost.get(&current.node).unwrap() + 1;  // NB: const 1 cost per traversal assumed
-                    if !cost.contains_key(&neigh) || est < *cost.get(&neigh).unwrap() {
-                        cost.insert(neigh, est);
-                        back.insert(neigh, current.node);
-                        open.push(Reverse(State { node: neigh, cost: est + (neigh - goal).l1() as usize }));
-                    }
+                path.push(current);
+                if let Some(next) = back.get(&current) {
+                    current = *next;
+                } else {
+                    path.reverse();
+                    return Ok(path);
                 }
             }
         }
 
-        Err(Error::Disconnected)
+        current.node.neighbors(&mut neighbors);  // NB: Implicitly using the implementation for N
+
+        for neigh in neighbors.drain(..) {
+            if !allow(neigh) {
+                continue;
+            }
+
+
+            let est = cost.get(&current.node).unwrap() + 1;  // NB: const 1 cost per traversal assumed
+            if !cost.contains_key(&neigh) || est < *cost.get(&neigh).unwrap() {
+                cost.insert(neigh, est);
+                back.insert(neigh, current.node);
+                open.push(Reverse(State { node: neigh, cost: est + (neigh - goal).l1() as usize }));
+            }
+        }
+    }
+
+    Err(Error::Disconnected)
+}
+
+impl<T: Traversable> Grid<T> {
+    pub fn path<N>(&self, start: V2i, goal: V2i) -> Result<Vec<V2i>, Error>
+        where
+            V2i: Neighbors<N>
+    {
+        path::<N, _>(start, goal, |pos| {
+            if let Ok(tile) = self.get(pos) {
+                tile.can_pass()
+            } else {
+                false
+            }
+        })
+    }
+}
+
+impl<T: Traversable + Default> Region<T> {
+    pub fn path<N>(&self, start: V2i, goal: V2i) -> Result<Vec<V2i>, Error>
+        where
+            V2i: Neighbors<N>
+    {
+        path::<N, _>(start, goal, |pos| {
+            if let Some(tile) = self.get(pos) {
+                tile.can_pass()
+            } else {
+                false
+            }
+        })
+    }
+
+    pub fn path_mut<N>(&mut self, start: V2i, goal: V2i) -> Result<Vec<V2i>, Error>
+        where
+            V2i: Neighbors<N>
+    {
+        path::<N, _>(start, goal, |pos| {
+            self.get_or_create(pos).can_pass()
+        })
     }
 }
 
@@ -145,7 +177,7 @@ mod test {
 
     #[test]
     fn finds_linf_path() {
-        let res = testing_grid().path::<Linf, _>(V2i(1, 3), V2i(3, 3), |_| true);
+        let res = testing_grid().path::<Linf>(V2i(1, 3), V2i(3, 3));
         println!("path: {:?}", res);
         assert!(res.is_ok());
         let path = res.unwrap();
@@ -156,7 +188,7 @@ mod test {
     
     #[test]
     fn finds_l1_path() {
-        let res = testing_grid().path::<L1, _>(V2i(1, 3), V2i(3, 3), |_| true);
+        let res = testing_grid().path::<L1>(V2i(1, 3), V2i(3, 3));
         println!("path: {:?}", res);
         assert!(res.is_ok());
         let path = res.unwrap();
@@ -169,15 +201,25 @@ mod test {
     fn fails_when_disconnected() {
         let mut grid = testing_grid();
         *grid.get_mut(V2i(2, 1)).expect("Failed to get cell") = 1;
-        let res = grid.path::<Linf, _>(V2i(1, 3), V2i(3, 3), |_| true);
+        let res = grid.path::<Linf>(V2i(1, 3), V2i(3, 3));
         println!("path: {:?}", res);
         assert!(res.is_err());
     }
 
+    /* Needs to be fixed if ever a closure is passed in again
     #[test]
     fn fails_when_not_allowed() {
-        let res = testing_grid().path::<Linf, _>(V2i(1, 3), V2i(3, 3), |v| (v-V2i(1, 3)).l1() < 3);
+        let res = testing_grid().path::<Linf>(V2i(1, 3), V2i(3, 3), |v| (v-V2i(1, 3)).l1() < 3);
         println!("path: {:?}", res);
         assert!(res.is_err());
+    }
+    */
+
+    #[test]
+    fn works_on_regions() {
+        let mut reg: Region<isize> = RegionConfig::default().build().unwrap();
+        let path = reg.path_mut::<Linf>(V2i(1, 3), V2i(3, 3));
+        println!("path: {:?}", path);
+        assert!(path.is_ok());
     }
 }
